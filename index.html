@@ -117,6 +117,10 @@ nav a:hover,nav a:focus-visible{color:var(--ink)}
 .calc-res li{color:var(--gray);font-size:15px;padding:6px 0;border-bottom:1px dashed var(--line);display:flex;justify-content:space-between;gap:16px}
 .calc-res li b{color:var(--ink);font-weight:600;white-space:nowrap}
 .calc-res .disc{font-size:13px;color:var(--gray);margin-top:16px;line-height:1.5}
+.calc-disc{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:14px;font-size:14px;color:var(--gray);line-height:1.4}
+.calc-disc .badge{display:inline-flex;align-items:center;background:var(--mint);color:var(--teal);border-radius:999px;padding:6px 13px;font-weight:700;font-size:13px;white-space:nowrap}
+.calc-disc a{color:var(--teal);font-weight:600}
+.calc-res li.cut b{color:var(--teal)}
 .calc-res .acts{display:flex;flex-direction:column;gap:12px;justify-content:center}
 .calc-res .acts .btn{width:100%}
 
@@ -349,6 +353,13 @@ footer{padding:60px 0 40px;border-top:1px solid var(--line)}
 .quiz-disc b{display:block;font-size:30px;line-height:1.1;font-weight:800;color:var(--teal);letter-spacing:-.02em;margin-top:2px}
 .quiz-bar{height:4px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:9px}
 .quiz-bar i{display:block;height:100%;width:0;background:var(--teal);transition:width .35s cubic-bezier(.22,.61,.36,1)}
+.q-ladder{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:-6px 0 26px}
+.q-ladder .ql-lbl{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gray);font-weight:600;margin-right:2px}
+.q-ladder .ql{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--gray);border:1px solid var(--line);border-radius:999px;padding:6px 12px;white-space:nowrap;transition:.15s}
+.q-ladder .ql b{font-weight:800;color:var(--gray);transition:.15s}
+.q-ladder .ql.on{border-color:var(--teal);background:var(--mint);color:var(--teal)}
+.q-ladder .ql.on b{color:var(--teal)}
+.q-ladder .ql-urg{font-size:13px;color:var(--gray)}
 .q-title{font-size:clamp(23px,2.6vw,32px);font-weight:800;letter-spacing:-.015em;line-height:1.16;max-width:780px}
 .q-hint{color:var(--gray);font-size:16px;margin-top:12px;max-width:700px}
 .q-opts{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
@@ -397,6 +408,9 @@ footer{padding:60px 0 40px;border-top:1px solid var(--line)}
   .quiz{padding:24px}
   .quiz-top{flex-direction:column-reverse;align-items:stretch;gap:16px}
   .quiz-disc{text-align:left;min-width:0}
+  .q-ladder{margin:0 0 22px;gap:6px}
+  .q-ladder .ql{font-size:12px;padding:5px 10px}
+  .q-ladder .ql-lbl{width:100%;margin:0 0 2px}
   .q-price{grid-template-columns:1fr;gap:28px}
   .q-bonus{grid-template-columns:1fr}
 }
@@ -550,6 +564,7 @@ footer{padding:60px 0 40px;border-top:1px solid var(--line)}
         <div>
           <div class="overline gray">Предварительно</div>
           <div class="sum" id="sum">отметьте зубы на схеме</div>
+          <div class="calc-disc" id="calcDisc"></div>
           <ul id="breakdown"></ul>
           <div class="disc" id="calcNote"></div>
         </div>
@@ -581,6 +596,13 @@ footer{padding:60px 0 40px;border-top:1px solid var(--line)}
           <b id="qDisc">0%</b>
           <div class="quiz-bar" aria-hidden="true"><i id="qBar"></i></div>
         </div>
+      </div>
+      <div id="qLadder" class="q-ladder" aria-label="Ступени скидки">
+        <span class="ql-lbl">Как растёт скидка</span>
+        <span class="ql" data-n="2">2 ответа <b>2%</b></span>
+        <span class="ql" data-n="4">4 ответа <b>4%</b></span>
+        <span class="ql" data-n="6">6 ответов <b>7%</b></span>
+        <span class="ql-urg">или «болит» — 7% сразу</span>
       </div>
       <div id="qBody" aria-live="polite"></div>
       <div class="q-foot" id="qFoot"></div>
@@ -809,29 +831,46 @@ footer{padding:60px 0 40px;border-top:1px solid var(--line)}
     pills($('pMat'), TYPES[type].mats, mat, function(i){ mat=i; drawMat(); render(); });
   }
 
+  function drawDisc(D, cut){
+    var box=document.getElementById('calcDisc');
+    if(!box) return;
+    box.innerHTML = D
+      ? '<span class="badge">Скидка '+D+'% · −'+fmt(cut)+'</span><span>по квизу, действует 7 дней</span><a href="#quiz">изменить</a>'
+      : '<span class="badge">Скидка до 7%</span><span>шесть вопросов квиза — и цена ниже</span><a href="#quiz">пройти квиз</a>';
+  }
+
   function render(){
     $('cnt').textContent=teeth.size;
     $('wPost').style.display = (type==='crown'||type==='veneer') ? 'flex' : 'none';
     var T=TYPES[type], lines=[], sum=0, perTooth=(T.per==='tooth');
+    var D=(window.KZ&&window.KZ.disc)||0;
     if(perTooth){
       var n=teeth.size, p=T.mats[mat][1];
-      if(!n){ $('sum').textContent='отметьте зубы на схеме'; $('breakdown').innerHTML=''; note(T); return; }
-      sum+=n*p; lines.push([T.mats[mat][0]+' × '+n, n*p]);
-      if($('cPost').checked){ sum+=n*7900; lines.push(['Культевая вкладка × '+n, n*7900]); }
+      if(!n){ $('sum').textContent='отметьте зубы на схеме'; $('breakdown').innerHTML=''; drawDisc(D,0); note(T); return; }
+      sum+=n*p; lines.push([T.mats[mat][0]+' × '+n, n*p, 0]);
+      if($('cPost').checked){ sum+=n*7900; lines.push(['Культевая вкладка × '+n, n*7900, 0]); }
     } else {
-      var p2=T.mats[mat][1]; sum+=p2; lines.push([T.mats[mat][0]+' (1 челюсть)', p2]);
+      var p2=T.mats[mat][1]; sum+=p2; lines.push([T.mats[mat][0]+' (1 челюсть)', p2, 0]);
     }
-    if($('cCt').checked){ sum+=3100; lines.push(['Компьютерная томография',3100]); }
-    if($('cCon').checked){ sum+=1000; lines.push(['Консультация врача',1000]); }
+    if($('cCt').checked){ sum+=3100; lines.push(['Компьютерная томография',3100, 0]); }
+    if($('cCon').checked){ sum+=1000; lines.push(['Консультация врача',1000, 0]); }
 
-    $('sum').textContent='от '+fmt(sum);
+    // скидка из квиза применяется к самой сумме расчёта, а не живёт отдельно
+    var cut = D ? Math.round(sum*D/100/100)*100 : 0;
+    var total = sum - cut;
+    if(cut){ lines.push(['Скидка по квизу '+D+'%', cut, 1]); }
+
+    $('sum').textContent='от '+fmt(total);
     $('breakdown').innerHTML=lines.map(function(l){
-      return '<li><span>'+l[0]+'</span><b>'+fmt(l[1])+'</b></li>';
+      return '<li'+(l[2]?' class="cut"':'')+'><span>'+l[0]+'</span><b>'+(l[2]?'−':'')+fmt(l[1])+'</b></li>';
     }).join('');
+    drawDisc(D, cut);
     note(T);
 
     var txt='Здравствуйте! Расчёт на сайте: '+T.n+', '+T.mats[mat][0]+
-      (perTooth?', зубов: '+teeth.size:'')+'. Итого от '+fmt(sum)+'. Хочу зафиксировать цену в плане.';
+      (perTooth?', зубов: '+teeth.size:'')+'. Итого от '+fmt(total)+
+      (cut?' (со скидкой '+D+'% по квизу, без скидки '+fmt(sum)+')':'')+
+      '. Хочу зафиксировать цену в плане.';
     $('comment').value=txt;
     $('mailBtn').href='mailto:zhelez-3000@mail.ru?subject='+encodeURIComponent('Расчёт с сайта: '+T.n)+
       '&body='+encodeURIComponent(txt);
@@ -842,6 +881,7 @@ footer{padding:60px 0 40px;border-top:1px solid var(--line)}
       'Расчёт предварительный и не является публичной офертой. Цены — из прайса клиники на 2ГИС. Итоговую сумму врач фиксирует в письменном плане после осмотра и снимка. Имеются противопоказания, необходима консультация специалиста.';
   }
   ['cPost','cCt','cCon'].forEach(function(id){ $(id).addEventListener('change', render); });
+  document.addEventListener('kzdisc', render);
   drawType(); drawMat();
 
   document.getElementById('leadForm').addEventListener('submit', function(e){
@@ -919,6 +959,23 @@ footer{padding:60px 0 40px;border-top:1px solid var(--line)}
     var d = disc();
     $('qDisc').textContent = d + '%';
     $('qBar').style.width = Math.round(d / 7 * 100) + '%';
+
+    // лестница скидки всегда на экране: видно, что можно получить и сколько уже есть
+    var n = answeredCount(), ur = state.urgent;
+    var segs = document.querySelectorAll('#qLadder .ql');
+    for(var i = 0; i < segs.length; i++){
+      var need = parseInt(segs[i].getAttribute('data-n'), 10);
+      var on = ur || n >= need;
+      segs[i].classList.toggle('on', on);
+      segs[i].setAttribute('aria-current', on ? 'true' : 'false');
+    }
+
+    // отдаём текущую скидку калькулятору выше по странице
+    window.KZ = window.KZ || {};
+    if(window.KZ.disc !== d){
+      window.KZ.disc = d;
+      document.dispatchEvent(new CustomEvent('kzdisc', { detail: d }));
+    }
   }
   function setMeta(t){ $('qMeta').textContent = t; }
   function clear(){ $('qBody').innerHTML = ''; $('qFoot').innerHTML = ''; }
